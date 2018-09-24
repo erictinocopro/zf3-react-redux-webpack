@@ -45,8 +45,26 @@ class Module implements ConfigProviderInterface
         return [
             'factories' => [
                 Controller\ApiController::class => function($container) {
+                    $config = $container->get('Config');
+                    $db = $config['zf-oauth2']['db'] ?? null;
+                    if (empty($db)) {
+                        throw new RuntimeException('missing configuration');
+
+                    }
+
+                    $storage = new \OAuth2\Storage\Pdo([
+                        'dsn' => $db['dsn'],
+                        'username' => $db['username'],
+                        'password' => $db['password']
+                    ]);
+                    $server = new \OAuth2\Server($storage);
+                    $server->addGrantType(new \OAuth2\GrantType\ClientCredentials($storage));
+                    $server->addGrantType(new \OAuth2\GrantType\AuthorizationCode($storage));
+                    $server->addGrantType(new \OAuth2\GrantType\UserCredentials($storage));
+
                     return new Controller\ApiController(
-                        $container->get(Model\GreetingsTable::class)
+                        $container->get(Model\GreetingsTable::class),
+                        $server
                     );
                 }
             ],
